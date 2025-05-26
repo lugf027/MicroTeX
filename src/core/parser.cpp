@@ -755,6 +755,34 @@ void TeXParser::preprocess() {
         break;
       }
       case PERCENT: {
+        // 转换为小写的辅助lambda函数
+        auto toLower = [](const wstring &s) {
+          wstring result = s;
+          transform(result.begin(), result.end(), result.begin(), ::towlower);
+          return result;
+        };
+        bool inText = false;
+        for (const auto &content : _unparsedContents) {
+          // 将搜索文本和待搜索内容转换为小写进行比较
+          wstring searchText = toLower(L"\\" + content + L"{");
+          wstring textToSearch = toLower(_latex.substr(0, _pos));
+          // 使用小写形式进行查找
+          if (textToSearch.find(searchText) != wstring::npos) {
+            size_t start = textToSearch.rfind(searchText);
+            size_t end = _latex.find(L"}", start);
+            if (end != wstring::npos && _pos > start && _pos < end) {
+              inText = true;
+              break;
+            }
+          }
+        }
+        if (inText) {
+          // 在 \text 命令内，在 % 符号前插入\\并跳过
+          _latex.insert(_pos, L"\\");
+          _pos += 2;
+          break;
+        }
+        // 如果不在 \text 命令内，按原来的方式处理注释
         spos = _pos++;
         wchar_t chr;
         while (_pos < _len) {
